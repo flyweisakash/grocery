@@ -1,5 +1,13 @@
 <h1>Grocery App Apis</h1>
 
-<p>npm run dev - To strat the development server</p>
-<p>npm run build - To build</p>
-<p>npm start - To start producation server</p>
+<h5>Install dependencies</h5>
+<pre>npm i</pre>
+
+<h5>Run development server</h5>
+<pre>npm run dev</pre>
+
+<h5>To build production server</h5>
+<pre>npm run build</pre>
+
+<h5>To start producation server</h5>
+<pre>npm start</pre>

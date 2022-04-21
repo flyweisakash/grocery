@@ -16,6 +16,9 @@ pids
 *.seed
 *.pid.lock
 
+#Build Directory
+build
+
 #MacOS
 .DS_Store
 
