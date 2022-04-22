@@ -66,6 +66,41 @@ export async function isRegistered(req, res, next) {
     }
 }
 
+// Register
+export async function register(req, res, next) {
+
+    // If the user is already register
+    // send the response
+    if (req.isRegistered) {
+        return res.status(400).json({ "error": "User already registered" });
+    }
+
+    const { fullName, email, phone } = req.body;
+
+    // New user document
+    let user = User({
+        fullName,
+        email,
+        phone
+    });
+
+    // Save the document
+    await user.save((err, user) => {
+        if (err) {
+            console.log(err);
+            return res.status(500).json({ "error": "There was an error to process the request" });
+        }
+
+        // bind the user to the request
+        req.user = user;
+        // change the register status true
+        req.isRegistered = true;
+        // pass to next
+        next();
+    });
+
+}
+
 
 // ************************** OTP authentication ************************************
 //Send OTP to verify the user account
@@ -90,15 +125,19 @@ export async function sendOTP(req, res) {
 
         // Save the OTP to the users account databased
         // to verify the user account without password
-        User.findByIdAndUpdate({ _id: req.user._id }, { otp }, { new: true }).exec((err, user) => {
-            if (err) {
-                console.log(err);
-                return res.status(500).json({ "error": "There was an error to process the request" });
-            }
-            // if the user is not found
-            if (user == null) {
-                return res.status(400).json({ "error": "User is not registered" });
-            } else {
+        User.findByIdAndUpdate(
+            { _id: req.user._id },
+            { otp },
+            { new: true }).exec((err, user) => {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).json({ "error": "There was an error to process the request" });
+                }
+                // if the user is not found
+                if (user == null) {
+                    return res.status(400).json({ "error": "User is not registered" });
+                }
+
                 // if the user found
                 // Send the OTP to the user
                 if (req.isEmail) {
@@ -109,17 +148,21 @@ export async function sendOTP(req, res) {
                         console.log(err);
                         return res.status(500).json({ "error": "There was an error to send the OTP" });
                     });
-                } else if (req.isPhone) {
+                } else if (req.isPhone || user.phone != undefined) {
                     // if the user provided the phone number to login
                     sendSMS(`Your OTP is ${value}`, user.phone).then(() => {
-                        return res.status(200).json({ "message": "OTP sent successfully" });
+                        return res.status(200).json({
+                            _id: user._id,
+                            fullName: user.fullName,
+                            email: user.email,
+                            phone: user.phone,
+                        });
                     }).catch(err => {
                         console.log(err);
                         return res.status(500).json({ "error": "There was an error to send the OTP" });
                     });
                 }
-            }
-        });
+            });
     }
 }
 
@@ -221,48 +264,18 @@ export async function login(req, res) {
         JSON.stringify({ accessToken, refreshToken }),
         { expires: new Date(Date.now() + 48 * 60 * 60 * 1000) }
     );
-    
+
     // Send the response including user object
     // user object is attatched with the req object
     return res.status(200).json({
         _id: req.user._id,
-        fullName:  req.user.fullName,
+        fullName: req.user.fullName,
         email: req.user.email,
         phone: req.user.phone,
         refreshToken
     });
 
 };
-
-// Register
-export async function register(req, res) {
-
-    // If the user is already register
-    // send the response
-    if (req.isRegistered) {
-        return res.status(400).json({ "error": "User already registered" });
-    }
-
-    const { fullName, email, phone } = req.body;
-
-    // New user document
-    let user = User({
-        fullName,
-        email,
-        phone
-    });
-
-    // Save the document
-    await user.save((err, user) => {
-        if (err) {
-            console.log(err);
-            return res.status(500).json({ "error": "There was an error to process the request" });
-        }
-
-        return res.status(200).json(user);
-    });
-
-}
 
 // Check if the user is loggedIn
 export async function isLoggedIn(req, res, next) {

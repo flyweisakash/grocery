@@ -21,7 +21,7 @@ router.post("/send-otp", isRegistered, sendOTP);
 // Verify the OTP and then login the user
 router.post("/login", isRegistered, verifyOTP, login);
 // Register the user
-router.post("/register", isRegistered, register);
+router.post("/register", isRegistered, register, sendOTP);
 // verify the user account, when user register the account
 router.post("/verify-account", isRegistered, verifyOTP, verifyAccount, login);
 // Generate new Access token when it gets expired
