@@ -177,6 +177,7 @@ export async function verifyAccount(req, res, next) {
                 return res.status(400).json({ "error": "User is not registered" });
             } else {
                 // if the user found, login the user and generate the access token
+                req.user = user;
                 next();
             }
         });
