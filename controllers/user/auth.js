@@ -156,7 +156,8 @@ export async function verifyOTP(req, res, next) {
 
 // Verify the account via OTP and update the account status
 // Update the Active status to true
-export async function verifyAccount(req, res) {
+// Once the account is verified, login the user and generate the access token
+export async function verifyAccount(req, res, next) {
     // if the user is not registered
     // return the status 400 with error message
     if (req.isRegistered == false) {
@@ -175,8 +176,8 @@ export async function verifyAccount(req, res) {
             if (user == null) {
                 return res.status(400).json({ "error": "User is not registered" });
             } else {
-                // if the user found
-                return res.status(200).json({ "message": "Account verified successfully" });
+                // if the user found, login the user and generate the access token
+                next();
             }
         });
     }

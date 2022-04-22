@@ -23,7 +23,7 @@ router.post("/login", isRegistered, verifyOTP, login);
 // Register the user
 router.post("/register", isRegistered, register);
 // verify the user account, when user register the account
-router.post("/verify-account", isRegistered, verifyOTP, verifyAccount);
+router.post("/verify-account", isRegistered, verifyOTP, verifyAccount, login);
 // Generate new Access token when it gets expired
 // userId and the refreshToken should be provided in order to generate new token
 router.post("/generate-new-token", generateNewToken);
