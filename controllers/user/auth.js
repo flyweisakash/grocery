@@ -1,4 +1,4 @@
-import User from "../../models/user";
+import { User, OTP } from "../../models/user";
 import { generateAccessToken, generateRefreshToken, authenticateToken } from "./services/auth";
 import { sendSMS, sendEmail } from "./services/otp";
 
@@ -19,11 +19,17 @@ export async function isRegistered(req, res, next) {
         User.findOne({ email }).exec((err, user) => {
             if (err) {
                 console.log(err);
-                return res.status(500).json({ "error": "There was an error to process the request" });
+                return res.status(500).json({
+                    status: 500,
+                    data: null,
+                    errors: true,
+                    message: "There was an error while processing your request"
+                });
             }
             /// if the user is not found
             if (user == null) {
                 req.isRegistered = false;
+                req.user.email = email;
             } else {
                 // if the user found
                 req.user = user;
@@ -47,11 +53,17 @@ export async function isRegistered(req, res, next) {
         User.findOne({ phone }).exec((err, user) => {
             if (err) {
                 console.log(err);
-                return res.status(500).json({ "error": "There was an error to process the request" });
+                return res.status(500).json({
+                    status: 500,
+                    data: null,
+                    errors: true,
+                    message: "There was an error while processing your request"
+                });
             }
             // if the user is not found
             if (user == null) {
                 req.isRegistered = false;
+                req.user.phone = phone;
             } else {
                 // if the user found
                 req.user = user;
@@ -62,19 +74,30 @@ export async function isRegistered(req, res, next) {
             next();
         });
     } else {
-        return res.status(400).json({ "error": "Please provide email or phone" });
+        return res.status(400).json({
+            status: 400,
+            data: null,
+            errors: true,
+            message: "Please provide email or phone number"
+        });
     }
-}
+};
 
 // Register
-export async function register(req, res, next) {
+export async function register(req, res) {
 
     // If the user is already register
     // send the response
     if (req.isRegistered) {
-        return res.status(400).json({ "error": "User already registered" });
+        return res.status(400).json({
+            status: 400,
+            data: null,
+            errors: true,
+            message: "User already registered"
+        });
     }
 
+    // Destruct the user details
     const { fullName, email, phone } = req.body;
 
     // New user document
@@ -88,15 +111,21 @@ export async function register(req, res, next) {
     await user.save((err, user) => {
         if (err) {
             console.log(err);
-            return res.status(500).json({ "error": "There was an error to process the request" });
+            return res.status(500).json({
+                status: 500,
+                data: null,
+                errors: true,
+                message: "There was an error to process the request"
+            });
         }
 
-        // bind the user to the request
-        req.user = user;
-        // change the register status true
-        req.isRegistered = true;
-        // pass to next
-        next();
+        // Send the response when the user is successfully registered
+        return res.status(200).json({
+            status: 200,
+            data: user,
+            errors: null,
+            message: "User registered successfully"
+        });
     });
 
 }
@@ -106,139 +135,201 @@ export async function register(req, res, next) {
 //Send OTP to verify the user account
 export async function sendOTP(req, res) {
 
-    // if the user is not registered
-    // return the status 400 with error message
-    if (req.isRegistered == false) {
-        return res.status(400).json({ "error": "User is not registered" });
-    }
+    // Generate 4 digits OTP
+    let value = Math.floor(1000 + Math.random() * 9000);
+    let expiresAt = Date.now() + 600000; // 10 minutes
 
-    // When the user is registered
-    if (req.isRegistered) {
-        // Generate 4 digits OTP
-        let value = Math.floor(1000 + Math.random() * 9000);
-        let expiresAt = Date.now() + 600000; // 10 minutes
+    // Save the OTP value and expiration time 
+    // along with either email or phone number
+    // if the email is provided then save email as otp _id
+    // otherwise save the phone
+    const otp = {
+        user: req.isEmail ? req.user.email : req.isPhone && req.user.phone,
+        value,
+        expiresAt
+    };
 
-        // Save the OTP value and expiration time to the user
-        const otp = {
-            value, expiresAt
-        }
-
-        // Save the OTP to the users account databased
-        // to verify the user account without password
-        User.findByIdAndUpdate(
-            { _id: req.user._id },
-            { otp },
-            { new: true }).exec((err, user) => {
-                if (err) {
-                    console.log(err);
-                    return res.status(500).json({ "error": "There was an error to process the request" });
-                }
-                // if the user is not found
-                if (user == null) {
-                    return res.status(400).json({ "error": "User is not registered" });
-                }
-
-                // if the user found
-                // Send the OTP to the user
-                if (req.isEmail) {
-                    // If the user provided email to login
-                    sendEmail("OTP", `Your OTP is ${value}`, user.email).then(() => {
-                        return res.status(200).json({ "message": "OTP sent successfully" });
-                    }).catch(err => {
-                        console.log(err);
-                        return res.status(500).json({ "error": "There was an error to send the OTP" });
-                    });
-                } else if (req.isPhone || user.phone != undefined) {
-                    // if the user provided the phone number to login
-                    sendSMS(`Your OTP is ${value}`, user.phone).then(() => {
-                        return res.status(200).json({
-                            _id: user._id,
-                            fullName: user.fullName,
-                            email: user.email,
-                            phone: user.phone,
-                        });
-                    }).catch(err => {
-                        console.log(err);
-                        return res.status(500).json({ "error": "There was an error to send the OTP" });
-                    });
-                }
+    // Save the OTP in the databases so that it clould be verified later
+    const _otp = OTP(otp);
+    // Save the OTP
+    await _otp.save((err, otp) => {
+        // if there is an error
+        if (err) {
+            console.log(err);
+            return res.status(500).json({
+                status: 500,
+                data: null,
+                errors: true,
+                message: "There was an error while processing your request"
             });
-    }
-}
+        }
+        // after saving the OTP, send the OTP to the user
+        // Send the OTP to the user
+        if (req.isEmail) {
+            // If the user provided email to login
+            sendEmail("OTP", `Your OTP is ${value}`, req.user.email)
+                .then(() => {
+                    // Send the response
+                    return res.status(200).json({
+                        status: 200,
+                        data: { otpId: otp._id, isRegistered: req.isRegistered },
+                        errors: false,
+                        message: "OTP sent successfully"
+                    });
+                }).catch(err => {
+                    // If there is an error while sending the email
+                    console.log(err);
+                    // Send the response
+                    return res.status(500).json({
+                        statu: 500,
+                        data: null,
+                        errors: true,
+                        message: "Failed to send OTP on email"
+                    })
+                });
+        } else if (req.isPhone) {
+            // if the user provided the phone number to login
+            sendSMS(`Your OTP is ${value}`, req.user.phone)
+                .then(() => {
+                    // Send the response on success
+                    return res.status(200).json({
+                        status: 200,
+                        data: { otpId: otp._id, isRegistered: req.isRegistered },
+                        errors: false,
+                        message: "OTP sent successfully"
+                    });
+                }).catch(err => {
+                    // If there is an error while sending the SMS
+                    console.log(err);
+                    // Send the response
+                    return res.status(500).json({
+                        status: 500,
+                        data: null,
+                        errors: true,
+                        message: "Failed to send OTP on phone"
+                    });
+                });
+        }
+    });
+};
+
 
 //Verify the otp
 export async function verifyOTP(req, res, next) {
-    // if the user is not registered
-    // return the status 400 with error message
-    if (req.isRegistered == false) {
-        return res.status(400).json({ "error": "User is not registered" });
-    }
 
-    // When the user is registered
-    if (req.isRegistered) {
-        // grab the otp
-        let otp = req.body.otp;
-        // if the otp is not provided
-        if (otp == undefined) {
-            return res.status(400).json({ "error": "OTP is not provided" });
-        }
-        // if the otp is not equal to the saved otp
-        if (parseInt(otp) != req.user.otp.value) {
-            return res.status(400).json({ "error": "OTP is not valid" });
+    // grab the otpId and otp to verify in the database
+    let _id = req.body.otpId;
+    let _otp = req.body.otp;
+
+    // the user will be etiher user email or phone
+    // to will use to delete all the OTP created by user
+    let user = req.isEmail ? req.user.email : req.isPhone && req.user.phone;
+
+    // if the otp is not provided
+    if (_otp == undefined || _otp == null || _otp == "") {
+        // return the status 400 with error message
+        return res.status(400).json({
+            status: 400,
+            data: null,
+            errors: true,
+            message: "Please provide the OTP"
+        });
+    };
+
+    // if the otpid is not provided
+    if (_id == undefined || _id == null || _id == "") {
+        // return the status 400 with error message
+        return res.status(400).json({
+            status: 400,
+            data: null,
+            errors: true,
+            message: "otpId not provided"
+        });
+    };
+
+    // Find the OTP in the database
+    // here the id is either user email or phone
+    OTP.findOne({ _id }, (err, otp) => {
+        // if there is an error
+        if (err) {
+            console.log(err);
+            return res.status(500).json({
+                status: 500,
+                data: null,
+                errors: true,
+                message: "There was an error while processing your request"
+            });
         }
 
-        // if the otp has expired
-        if (req.user.otp.expiresAt < Date.now()) {
-            return res.status(400).json({ "error": "OTP has expired" });
+        // if the OTP is not found
+        if (!otp) {
+            // return the status 400 with error message
+            return res.status(400).json({
+                status: 400,
+                data: null,
+                errors: true,
+                message: "OTP not found in database"
+            });
+        }
+
+        // if the OTP is expired
+        if (otp.expiresAt < Date.now()) {
+            // return the status 400 with error message
+            return res.status(400).json({
+                status: 400,
+                data: null,
+                errors: true,
+                message: "OTP expired"
+            });
+        }
+
+        //if the OTP is not valid
+        if (parseInt(otp.value) != parseInt(_otp)) {
+            return res.status(401).json({
+                status: 401,
+                body: null,
+                errors: true,
+                message: "Invald OTP"
+            });
         }
 
         // if the OTP is valid
-        next();
-    }
-}
+        if (parseInt(otp.value) == parseInt(_otp)) {
 
-// Verify the account via OTP and update the account status
-// Update the Active status to true
-// Once the account is verified, login the user and generate the access token
-export async function verifyAccount(req, res, next) {
-    // if the user is not registered
-    // return the status 400 with error message
-    if (req.isRegistered == false) {
-        return res.status(400).json({ "error": "User is not registered" });
-    }
+            //Once the OTP is verified, delete the data from databases
+            // either using user's email or phone
+            // the id will contain the either user email or phone
+            OTP.deleteMany({ user }, (err, otp) => {
+                // if there is an error
+                if (err) {
+                    console.log(err);
+                    return res.status(500).json({
+                        status: 500,
+                        data: null,
+                        errors: true,
+                        message: "There was an error while processing your request"
+                    });
+                }
 
-    // When the user is registered
-    if (req.isRegistered) {
-        // Update the account status to verified
-        User.findByIdAndUpdate({ _id: req.user._id }, { active: true }, { new: true }).exec((err, user) => {
-            if (err) {
-                console.log(err);
-                return res.status(500).json({ "error": "There was an error to process the request" });
-            }
-            // if the user is not found
-            if (user == null) {
-                return res.status(400).json({ "error": "User is not registered" });
-            } else {
-                // if the user found, login the user and generate the access token
-                req.user = user;
+                // pass the control to the next middleware
                 next();
-            }
-        });
-    }
+            });
+        }
+    });
 }
 
-// Login
+// Login the user after verifying the OTP
 export async function login(req, res) {
-
-    // Check whether the user account is active or not
-    if (req.user.active == false) {
-        return res.status(400).json({ "error": "Account is not verified" });
-    }
 
     //Check whether the user is registered or not
     // if the user is not registered, send the status 400 with error message
     if (req.isRegistered == false) {
-        return res.status(400).json({ "error": "User is not registered" });
+        return res.status(400).json({
+            status: 400,
+            data: null,
+            errors: true,
+            message: "User is not registered"
+        });
     }
 
     // user object
@@ -268,11 +359,17 @@ export async function login(req, res) {
     // Send the response including user object
     // user object is attatched with the req object
     return res.status(200).json({
-        _id: req.user._id,
-        fullName: req.user.fullName,
-        email: req.user.email,
-        phone: req.user.phone,
-        refreshToken
+        status: 200,
+        data: {
+            _id: req.user._id,
+            fullName: req.user.fullName,
+            email: req.user.email,
+            phone: req.user.phone,
+            refreshToken,
+            accessToken
+        },
+        errors: false,
+        message: "Successfully loggedIn"
     });
 
 };
@@ -280,18 +377,47 @@ export async function login(req, res) {
 // Check if the user is loggedIn
 export async function isLoggedIn(req, res, next) {
 
+    // When authorization is provided
+    const authToken = req.headers.authorization;
+
     // when no tokens cookie is found
-    if (!req.cookies.tokens) {
-        return res.status(401).json({ "error": "Unauthorized" });
+    if (!req.cookies.tokens || !authToken) {
+        return res.status(401).json({
+            status: 401,
+            data: null,
+            errors: true,
+            message: "Unauthorized"
+        });
     }
 
     // When the authorization tokens are not provided
-    if (req.cookies.tokens == undefined) {
-        return res.status(401).json({ "error": "No authorization token is provided" });
+    if (req.cookies.tokens == undefined || authToken == "") {
+        return res.status(401).json({
+            status: 401,
+            data: null,
+            errors: true,
+            message: "No authorization token is provided"
+        });
     }
 
     // When the authorization tokens are provided
-    const tokens = JSON.parse(req.cookies.tokens);
+    const tokens = {};
+
+    if (!!authToken) {
+        if (authToken.substr(0, 6) != "Bearer") {
+            return res.status(401).json({
+                status: 401,
+                data: null,
+                errors: true,
+                message: "Bearer is missing from the token"
+            });
+        } else {
+            tokens.accessToken = authToken.substr(8, authToken.length - 1);
+        }
+    } else if (req.cookies.tokens) {
+        tokens = JSON.parse(req.cookies.tokens);
+    }
+
     // Destruct the AccessToken and refreshToken
     const accessToken = tokens.accessToken;
 
@@ -302,7 +428,12 @@ export async function isLoggedIn(req, res, next) {
             // If the accessToken is not valid
             console.log(err);
             res.clearCookie("tokens");
-            return res.status(403).json({ "error": "Access token has expired, please login again" });
+            return res.status(403).json({
+                status: 403,
+                data: null,
+                errors: true,
+                message: "Access token has expired, please login again"
+            });
         }
         // attatch with the auth object in the request
         req.auth = data;
@@ -317,7 +448,12 @@ export async function isAuthenticated(req, res, next) {
     // Match the decoded information from the AccessToken
     // against the user information
     if (req.user._id != req.auth._id) {
-        return res.status(401).json({ "error": "Invalid authorization token" });
+        return res.status(401).json({
+            status: 401,
+            data: null,
+            errors: true,
+            message: "Invalid authorization token"
+        });
     }
 
     // When the authorization token is valid
@@ -332,7 +468,12 @@ export async function generateNewToken(req, res) {
     const refreshToken = req.body.refreshToken;
     // when the refresh token is not provided
     if (refreshToken == undefined) {
-        return res.status(400).json({ "error": "Refresh token is not provided" });
+        return res.status(400).json({
+            status: 400,
+            data: null,
+            errors: true,
+            message: "Refresh Token is not provided"
+        });
     }
 
     // When the refresh token is provided
@@ -340,8 +481,14 @@ export async function generateNewToken(req, res) {
     authenticateToken(refreshToken, (err, data) => {
         if (err) {
             console.log(err);
-            return res.status(403).json({ "error": "Refresh token is not valid" });
+            return res.status(403).json({
+                status: 403,
+                data: null,
+                errors: true,
+                message: "Refresh token is not valid"
+            });
         }
+
         // When the refresh token is valid
         // Generate the new Access token
         // Attach the new tokens to the response
@@ -353,7 +500,19 @@ export async function generateNewToken(req, res) {
             { expires: new Date(Date.now() + 48 * 60 * 60 * 1000) }
         );
         // Send the response status OK
-        return res.sendStatus(200);
+        return res.sendStatus({
+            status: 200,
+            data: {
+                _id: req.user._id,
+                fullName: req.user.fullName,
+                email: req.user.email,
+                phone: req.user.phone,
+                refreshToken,
+                accessToken
+            },
+            errors: false,
+            message: "Successfully Created new Access Token"
+        });
     });
 }
 
@@ -361,5 +520,11 @@ export async function generateNewToken(req, res) {
 export async function logout(req, res) {
     // clear the cookie and send the response
     res.clearCookie("tokens");
-    return res.status(200).json({ "message": "Logged out successfully" });
+    // send the response
+    return res.status(200).json({
+        status: 200,
+        data: null,
+        errors: false,
+        message: "Logged out successfully"
+    });
 }

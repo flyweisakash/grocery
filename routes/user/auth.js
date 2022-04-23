@@ -9,21 +9,19 @@ import {
     logout,
     register,
     sendOTP,
-    verifyAccount,
     verifyOTP
 } from "../../controllers/user/auth";
 
 
 // Login and Register routes
 // Before anything, do verify whether the user is registred or not
-// Send the OTP to emial or phone
-router.post("/send-otp", isRegistered, sendOTP);
+// Register the user by verifying the OTP
+router.post("/initiate", isRegistered, sendOTP);
+// if the user is not register, then register the user
+// verify the OTP before save the user in the database
+router.post("/register", isRegistered, verifyOTP, register);
 // Verify the OTP and then login the user
 router.post("/login", isRegistered, verifyOTP, login);
-// Register the user
-router.post("/register", isRegistered, register, sendOTP);
-// verify the user account, when user register the account
-router.post("/verify-account", isRegistered, verifyOTP, verifyAccount, login);
 // Generate new Access token when it gets expired
 // userId and the refreshToken should be provided in order to generate new token
 router.post("/generate-new-token", generateNewToken);

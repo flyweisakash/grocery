@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+// User Schema
 const userSchema = new mongoose.Schema({
     fullName: {
         type: String,
@@ -14,22 +15,30 @@ const userSchema = new mongoose.Schema({
         type: String,
         unique: true,
         required: [true, "Phone number is required"]
-    },
-    active: {
-        type: Boolean,
-        default: false
-    },
-    otp: {
-        value: {
-            type: String,
-            default: null
-        },
-        expiresAt: {
-            type: Date,
-            default: null
-        }
     }
 }, { timestamps: true });
 
+// OTP Schema
+// save the either user email or phone as OTP id to verify and otp
+// and delete the OTP when not longer needed
+const otpSchema = new mongoose.Schema({
+    user: {
+        type: String,
+        unique: false,
+        required: [true, "User details is required"]
+    },
+    value: {
+        type: Number,
+        required: [true, "OTP is required"]
+    },
+    expiresAt: {
+        type: Date,
+        required: [true, "Expiry time is required"]
+    }
+}, { timestamps: true });
 
-module.exports = mongoose.model("user", userSchema);
+// export User and OTP Schema
+export const User = mongoose.model("User", userSchema);
+export const OTP = mongoose.model("OTP", otpSchema);
+
+module.exports = { User, OTP };
