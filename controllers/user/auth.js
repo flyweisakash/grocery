@@ -217,17 +217,6 @@ export async function sendOTP(req, res) {
 //Verify the otp
 export async function verifyOTP(req, res, next) {
 
-    // if the user is already registred, then don't verify the OTP
-    // send the response to the user
-    if (req.isRegistered) {
-        return res.status(400).json({
-            status: 400,
-            data: null,
-            errors: true,
-            message: "User already registered"
-        });
-    }
-
     // grab the otpId and otp to verify in the database
     let _id = req.body.otpId;
     let _otp = req.body.otp;
