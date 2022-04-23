@@ -221,10 +221,6 @@ export async function verifyOTP(req, res, next) {
     let _id = req.body.otpId;
     let _otp = req.body.otp;
 
-    // the user will be etiher user email or phone
-    // to will use to delete all the OTP created by user
-    let user = req.isEmail ? req.user.email : req.isPhone && req.user.phone;
-
     // if the otp is not provided
     if (_otp == undefined || _otp == null || _otp == "") {
         // return the status 400 with error message
@@ -299,7 +295,7 @@ export async function verifyOTP(req, res, next) {
             //Once the OTP is verified, delete the data from databases
             // either using user's email or phone
             // the id will contain the either user email or phone
-            OTP.deleteMany({ user }, (err, otp) => {
+            OTP.deleteMany({ user: otp.user }, (err, otp) => {
                 // if there is an error
                 if (err) {
                     console.log(err);
