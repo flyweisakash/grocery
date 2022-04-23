@@ -377,17 +377,7 @@ export async function isLoggedIn(req, res, next) {
     // When authorization is provided
     let authToken = req.headers.authorization;
 
-    // When the authorization tokens are not provided
-    if (req.cookies.tokens == undefined || authToken == "") {
-        return res.status(401).json({
-            status: 401,
-            data: null,
-            errors: true,
-            message: "No authorization token is provided"
-        });
-    }
-
-    // When the authorization tokens are provided
+    // Take a tokens variable
     let tokens = {};
 
     if (!!authToken) {
@@ -399,10 +389,10 @@ export async function isLoggedIn(req, res, next) {
                 message: "Bearer is missing from the token"
             });
         } else {
-            tokens.accessToken = authToken.substr(8, authToken.length - 1);
+            tokens.accessToken = authToken.substr(7, authToken.length - 1);
         }
     } else if (!!req.cookies.tokens) {
-        tokens = JSON.parse(req.cookies.tokens);
+        tokens = JSON.parse(req.cookies.tokens);    
     } else {
         return res.status(401).json({
             status: 401,
