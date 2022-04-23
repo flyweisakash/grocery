@@ -331,8 +331,9 @@ export async function login(req, res) {
     // user object
     const user = {
         _id: req.user._id,
-        name: req.user.name,
-        email: req.user.email
+        fullName: req.user.fullName,
+        email: req.user.email,
+        phone: req.user.phone
     }
 
     //Send the Final Response
@@ -374,17 +375,7 @@ export async function login(req, res) {
 export async function isLoggedIn(req, res, next) {
 
     // When authorization is provided
-    const authToken = req.headers.authorization;
-
-    // when no tokens cookie is found
-    if (!req.cookies.tokens || !authToken) {
-        return res.status(401).json({
-            status: 401,
-            data: null,
-            errors: true,
-            message: "Unauthorized"
-        });
-    }
+    let authToken = req.headers.authorization;
 
     // When the authorization tokens are not provided
     if (req.cookies.tokens == undefined || authToken == "") {
@@ -397,7 +388,7 @@ export async function isLoggedIn(req, res, next) {
     }
 
     // When the authorization tokens are provided
-    const tokens = {};
+    let tokens = {};
 
     if (!!authToken) {
         if (authToken.substr(0, 6) != "Bearer") {
@@ -410,8 +401,15 @@ export async function isLoggedIn(req, res, next) {
         } else {
             tokens.accessToken = authToken.substr(8, authToken.length - 1);
         }
-    } else if (req.cookies.tokens) {
+    } else if (!!req.cookies.tokens) {
         tokens = JSON.parse(req.cookies.tokens);
+    } else {
+        return res.status(401).json({
+            status: 401,
+            data: null,
+            errors: true,
+            message: "Unauthorized"
+        });
     }
 
     // Destruct the AccessToken and refreshToken
@@ -496,13 +494,13 @@ export async function generateNewToken(req, res) {
             { expires: new Date(Date.now() + 48 * 60 * 60 * 1000) }
         );
         // Send the response status OK
-        return res.sendStatus({
+        return res.status(200).json({
             status: 200,
             data: {
-                _id: req.user._id,
-                fullName: req.user.fullName,
-                email: req.user.email,
-                phone: req.user.phone,
+                _id: data._id,
+                fullName: data.fullName,
+                email: data.email,
+                phone: data.phone,
                 refreshToken,
                 accessToken
             },
