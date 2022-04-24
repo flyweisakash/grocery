@@ -7,7 +7,7 @@ if [ -d $DIR ]; then
     echo "Deleted old build directory"
 fi
 echo "Creating build directory"
-mkdir $DIR
+mkdir -p $DIR
 
 echo "compiling files"
 babel server --out-dir build/server

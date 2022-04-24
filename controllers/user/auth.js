@@ -29,7 +29,7 @@ export async function isRegistered(req, res, next) {
             /// if the user is not found
             if (user == null) {
                 req.isRegistered = false;
-                req.user.email = email;
+                req.user = { email };
             } else {
                 // if the user found
                 req.user = user;
@@ -63,7 +63,7 @@ export async function isRegistered(req, res, next) {
             // if the user is not found
             if (user == null) {
                 req.isRegistered = false;
-                req.user.phone = phone;
+                req.user = { phone };
             } else {
                 // if the user found
                 req.user = user;
@@ -392,7 +392,7 @@ export async function isLoggedIn(req, res, next) {
             tokens.accessToken = authToken.substr(7, authToken.length - 1);
         }
     } else if (!!req.cookies.tokens) {
-        tokens = JSON.parse(req.cookies.tokens);    
+        tokens = JSON.parse(req.cookies.tokens);
     } else {
         return res.status(401).json({
             status: 401,
