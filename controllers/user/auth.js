@@ -29,6 +29,7 @@ export async function isRegistered(req, res, next) {
             /// if the user is not found
             if (user == null) {
                 req.isRegistered = false;
+                req.isEmail = true;
                 req.user = { email };
             } else {
                 // if the user found
@@ -63,6 +64,7 @@ export async function isRegistered(req, res, next) {
             // if the user is not found
             if (user == null) {
                 req.isRegistered = false;
+                req.isPhone = true;
                 req.user = { phone };
             } else {
                 // if the user found

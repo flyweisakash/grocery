@@ -1,22 +1,25 @@
 #!/bin/bash
-DIR = "build"
+DIR="build"
 # check if build directory exists
 if [ -d $DIR ]; then
-# if it does, delete it
+    # delete it
     rm -rf $DIR
     echo "Deleted old build directory"
 fi
-echo "Creating build directory"
+echo "\nCreating new build directory"
 mkdir -p $DIR
 
-echo "compiling files"
+echo "\nCopying files to build directory"
+echo "building..."
 babel server --out-dir build/server
 babel controllers --out-dir build/controllers
 babel models --out-dir build/models
 babel routes --out-dir build/routes
 babel config --out-dir build/config
-babel tests --out-dir build/test
+# babel tests --out-dir build/test
 
 echo "Copying public files to build directory"
 cp -r public build/public
+
+echo "\nBuild successful!"
 
